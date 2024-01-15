@@ -127,9 +127,10 @@ struct bmp_addresses_t* bmp_addresses;
 unsigned long bmp_calculate_size(bmp_addresses)
 struct bmp_addresses_t* bmp_addresses;
 {	
-	return (unsigned long)sizeof(struct bmp_header_t) +
+	return (unsigned long)sizeof(struct bmp_header_t) + 
 		(unsigned long)sizeof(struct bmp_dib_header_t) +
-		((bmp_image_width(bmp_addresses) + bmp_pixel_row_padding(bmp_addresses)) * bmp_image_height(bmp_addresses) * (unsigned long)BMP_BYTES_PER_PIXEL);
+		bmp_pixel_row_padding(bmp_addresses) * bmp_image_height(bmp_addresses) +
+		bmp_image_width(bmp_addresses) * bmp_image_height(bmp_addresses) * (unsigned long)BMP_BYTES_PER_PIXEL;
 }
 
 /* Write unsigned long to a 4 byte field */

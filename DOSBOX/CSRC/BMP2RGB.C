@@ -162,6 +162,7 @@ char** envp;
 	rgb_addresses->rgb_data = (unsigned char*)calloc((unsigned int)1, (unsigned int)siz_calculate_size(rgb_addresses->siz_data));
 
 	/* Set the RGB pixels from the BMP pixels*/
+	fprintf(stderr, "RGB Contents: ");
 	for (y = 0; y < bmp_image_height(bmp_addresses); y++) {
 		for (x = 0; x < bmp_image_width(bmp_addresses); x++ ) {
 			rgb_write_color(x, y,
@@ -169,8 +170,12 @@ char** envp;
 				bmp_pixel_color(x, y, (unsigned long)BMP_GREEN_ADDRESS_OFFSET, bmp_addresses),
 				bmp_pixel_color(x, y, (unsigned long)BMP_BLUE_ADDRESS_OFFSET, bmp_addresses),
 				rgb_addresses);
+			fprintf(stderr, "(%02X,%02X,%02X)", rgb_pixel_color(x, y, (unsigned long)RGB_RED_ADDRESS_OFFSET, rgb_addresses),
+				rgb_pixel_color(x, y, (unsigned long)RGB_GREEN_ADDRESS_OFFSET, rgb_addresses),
+				rgb_pixel_color(x, y, (unsigned long)RGB_BLUE_ADDRESS_OFFSET, rgb_addresses));
 		}
 	}
+	fprintf(stderr, "\r\n");
 
 	/* Output the .RGB file */
 	/* Change working file extension to .RGB */
@@ -187,6 +192,7 @@ char** envp;
 
 	/* Free the file_name memory */
 	free(working_file_name);
+
 
 	/* Free RGB Data */
 	free(rgb_addresses->rgb_data);

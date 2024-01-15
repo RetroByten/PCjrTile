@@ -13,14 +13,21 @@
 #include <stdlib.h>
 #endif
 
-/*** Project library ***/
+/*** Project libraries ***/
 #ifndef __BMP_H__
 #define __BMP_H__
 #include "BMP.H"
 #endif
 
+#ifndef __RGBSIZ_H__
+#define __RGBSIZ_H__
+#include "RGBSIZ.H"
+#endif
+
 /*** Globals ***/
 struct bmp_addresses_t* bmp_addresses;
+struct siz_t* siz_data;
+struct rgb_addresses_t* rgb_addresses;
 
 /*** Main Function ***/
 main(argc, argv, envp)
@@ -32,20 +39,17 @@ char** envp;
 	unsigned long x;
 	unsigned long y;
 
-	unsigned char r;
+	unsigned char r; /* TODO - Remove these, no longer necessary */
 	unsigned char g;
 	unsigned char b;
+	unsigned char* raw_siz;
 
 	char* base_file_name; /* User supplied base file name */
 	char* working_file_name; /* Working full file name + extension */
 	char* working_file_extension; /* Pointer directly to the extension of working_file_name */
 	FILE* working_file;
 
-	unsigned char* read_buffer;
 	unsigned long bmp_size;
-	unsigned long image_width;
-	unsigned long image_height;
-	unsigned long image_padding;
 
 	/* CODE */
 	fprintf(stderr, "PCjr RGB2BMP\r\n");
@@ -77,8 +81,11 @@ char** envp;
 	working_file_extension[4] = '\0'; /* Adds new null terminator */
 	fprintf(stderr, "SIZ file name: %s\r\n", working_file_name);
 
+	/* Allocate the siz_t and point raw_siz for direct writing */
+	siz_data = (struct siz_t*)calloc((unsigned int)1, (unsigned int)sizeof(struct siz_t));
+	raw_siz = (unsigned char*)siz_data;
 	/* Open SIZ file as read-binary */
-	/* Determine BMP file size then reset the ptr */
+	/* Determine SIZ file size then reset the ptr */
 	/* y = number of bytes in the file */
 	working_file = fopen(working_file_name, "rb");
 	y = 0;
@@ -92,45 +99,31 @@ char** envp;
 	rewind(working_file); /* Reset to beginning of file */
 	fprintf(stderr, "SIZ file size: %d bytes\r\n", y);
 
-	/* Read the file contents into a buffer */
-	read_buffer = (unsigned char*)calloc((unsigned int)y, (unsigned int)sizeof(unsigned char));
-	fprintf(stderr, "SIZ file contents: ");
+	/* Read the SIZ contents into the SIZ */
 	for (x = 0; x < y; x++) {
-		read_buffer[x] = (unsigned char)fgetc(working_file);
-		fprintf(stderr, "%02X", read_buffer[x]);
+		raw_siz[x] = (unsigned char)fgetc(working_file);
+		/*siz_data->raw_image_width[x] = (unsigned char)fgetc(working_file);*/
 	}
-	fprintf(stderr, "\r\n");
 	fclose(working_file);
+	fprintf(stderr, "width=%lu\r\n", siz_image_width(siz_data));
+	fprintf(stderr, "height=%lu\r\n", siz_image_height(siz_data));
 
 	/* Set up the temporary initial bmp headers data so we can use the BMP functions */
+	/* TODO (#6) - look at this later to see if it can be simplified at all, probably not */
 	bmp_addresses = (struct bmp_addresses_t*)calloc((unsigned int)1, (unsigned int)sizeof(struct bmp_addresses_t));
 	bmp_addresses->bmp_data = (unsigned char*)calloc((unsigned int)1, (unsigned int)sizeof(struct bmp_header_t) + (unsigned int)sizeof(struct bmp_dib_header_t));
 	bmp_addresses->bmp_h = (struct bmp_header_t*)bmp_addresses->bmp_data;
 	bmp_addresses->dib_h = (struct bmp_dib_header_t*)((unsigned long)bmp_addresses->bmp_data + (unsigned long)sizeof(struct bmp_header_t));
-	fprintf(stderr, "bmp_data=%lu\r\n", (unsigned long)bmp_addresses->bmp_data);
-	fprintf(stderr, "bmp_h=%lu\r\n", (unsigned long)bmp_addresses->bmp_h);
-	fprintf(stderr, "dib_h=%lu\r\n", (unsigned long)bmp_addresses->dib_h);
 
 	/* Set sizes from stored SIZ data */
-	bmp_addresses->dib_h->raw_image_width[0] = read_buffer[0];
-	bmp_addresses->dib_h->raw_image_width[1] = read_buffer[1];
-	bmp_addresses->dib_h->raw_image_width[2] = read_buffer[2];
-	bmp_addresses->dib_h->raw_image_width[3] = read_buffer[3];
-	bmp_addresses->dib_h->raw_image_height[0] = read_buffer[4];
-	bmp_addresses->dib_h->raw_image_height[1] = read_buffer[5];
-	bmp_addresses->dib_h->raw_image_height[2] = read_buffer[6];
-	bmp_addresses->dib_h->raw_image_height[3] = read_buffer[7];
-	free(read_buffer);
+	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_image_width, siz_image_width(siz_data));
+	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_image_height, siz_image_height(siz_data));
+	
+	fprintf(stderr, "dib_h->image_width=%lu\r\n", bmp_image_width(bmp_addresses));
+	fprintf(stderr, "dib_h->image_height=%lu\r\n", bmp_image_height(bmp_addresses));
 
 	/* Now that we have a tempory BMP header set, use BMP functions to get data to make the real BMP */
-	image_width = bmp_image_width(bmp_addresses);
-	image_height = bmp_image_height(bmp_addresses);
-	fprintf(stderr, "X,Y=%lu,%lu\r\n", image_width, image_height);
-	image_padding = bmp_pixel_row_padding(bmp_addresses) * image_height;
-	bmp_size = (unsigned long)sizeof(struct bmp_header_t) +
-		(unsigned long)sizeof(struct bmp_dib_header_t) +
-		image_padding +
-		(image_width * image_height * (unsigned long)BMP_BYTES_PER_PIXEL);
+	bmp_size = bmp_calculate_size(bmp_addresses);
 	fprintf(stderr, "bmp_size=%lu\r\n", bmp_size);
 	
 	/* Free the temporary initial bmp data now that we have actual calculations */
@@ -148,8 +141,8 @@ char** envp;
 	bmp_write_four_byte_value(bmp_addresses->bmp_h->raw_size, bmp_size);
 	bmp_write_four_byte_value(bmp_addresses->bmp_h->raw_offset, (unsigned long)sizeof(struct bmp_header_t) + (unsigned long)sizeof(struct bmp_dib_header_t));
 	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_header_size, (unsigned long)sizeof(struct bmp_dib_header_t));
-	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_image_width, image_width);
-	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_image_height, image_height);
+	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_image_width, siz_image_width(siz_data));
+	bmp_write_four_byte_value(bmp_addresses->dib_h->raw_image_height, siz_image_height(siz_data));
 	bmp_write_two_byte_value(bmp_addresses->dib_h->raw_color_planes, (unsigned int)1);
 	bmp_write_two_byte_value(bmp_addresses->dib_h->raw_bpp, (unsigned int)BMP_BITS_PER_PIXEL);
 
@@ -159,6 +152,12 @@ char** envp;
 
 	/* TODO (#4) - Look at horizontal/vertical resolution? Can probably ignore */
 
+	/* Allocate memory for the rgb_addresses_t */
+	rgb_addresses = (struct rgb_addresses_t*)calloc((unsigned int)1, (unsigned int)sizeof(struct rgb_addresses_t));
+	rgb_addresses->siz_data = siz_data;
+	rgb_addresses->rgb_data = (unsigned char*)calloc((unsigned int)1, (unsigned int)siz_calculate_size(rgb_addresses->siz_data));
+
+
 	/* OPEN RGB FILE */
 	/* Output the .RGB file */
 	/* Change working file extension to .RGB */
@@ -167,21 +166,35 @@ char** envp;
 	working_file_extension[3] = 'B';
 	fprintf(stderr, "RGB file name: %s\r\n", working_file_name);
 
-	/* Open the working file as read-binary */
-	/* Write each RGB triplet to the BMP image structure */
+	/* Read in the RGB data into the RGB structure */
 	working_file = fopen(working_file_name, "rb");
-	fprintf(stderr, "RGB file contents: ");
-	for (y = 0; y < bmp_image_height(bmp_addresses); y++) {
-		for (x = 0; x < bmp_image_width(bmp_addresses); x++) {
-			r = (unsigned char)fgetc(working_file);
-			g = (unsigned char)fgetc(working_file);
-			b = (unsigned char)fgetc(working_file);
-			fprintf(stderr,"(%02X,%02X,%02X)",(unsigned char)r, (unsigned char)g, (unsigned char)b);
-			bmp_write_color(x, y, r, g, b, bmp_addresses);
-		}
+	fprintf(stderr, "RGB contents: ");
+	for (x = 0; x < siz_calculate_size(rgb_addresses->siz_data); x++) {
+		rgb_addresses->rgb_data[x] = (unsigned char)fgetc(working_file);
+		fprintf(stderr,"%02X", rgb_addresses->rgb_data[x]);
 	}
 	fprintf(stderr, "\r\n");
 	fclose(working_file);
+	
+	/* Transfer each pixel from RGB to BMP */
+	/* We know RGB data itself is good*/
+	/** TODO, for some reason this is broken not sure if it's rgb address_pixel_xy, rgb_pixel color, or something else **/
+	/** LOoks like RGB pixel color is coming back with all 0s' **/
+	fprintf(stderr,"BMP Pixel contents: ");
+	for (y = 0; y < siz_image_height(rgb_addresses->siz_data); y++) {
+		for (x = 0; x < siz_image_width(rgb_addresses->siz_data); x++) {
+			bmp_write_color(x, y,
+				rgb_pixel_color(x, y, (unsigned long)RGB_RED_ADDRESS_OFFSET, rgb_addresses),
+				rgb_pixel_color(x, y, (unsigned long)RGB_GREEN_ADDRESS_OFFSET, rgb_addresses),
+				rgb_pixel_color(x, y, (unsigned long)RGB_BLUE_ADDRESS_OFFSET, rgb_addresses),
+				bmp_addresses);
+			fprintf(stderr, "(%02X,%02X,%02X)",
+				bmp_pixel_color(x, y, (unsigned long)BMP_RED_ADDRESS_OFFSET, bmp_addresses),
+				bmp_pixel_color(x, y, (unsigned long)BMP_GREEN_ADDRESS_OFFSET, bmp_addresses),
+				bmp_pixel_color(x, y, (unsigned long)BMP_BLUE_ADDRESS_OFFSET, bmp_addresses));
+		}
+	}
+	fprintf(stderr, "\r\n");
 
 	/* OPEN BMP FILE */
 	/* Output the .BMP file */
@@ -199,6 +212,11 @@ char** envp;
 
 	/* Free working file name */
 	free(working_file_name);
+
+	/* Free RGB Data */
+	free(rgb_addresses->rgb_data);
+	free(rgb_addresses);
+	free(siz_data);
 
 	/* Free bmp_data and addresses */
 	free(bmp_addresses->bmp_data);

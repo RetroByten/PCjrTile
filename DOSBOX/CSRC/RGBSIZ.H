@@ -9,7 +9,7 @@
 
 #define RGB_BITS_PER_PIXEL 24
 #define RGB_BITS_PER_BYTE 8
-#define RGB_BYTES_PER_PIXEL BMP_BITS_PER_PIXEL/BMP_BITS_PER_BYTE
+#define RGB_BYTES_PER_PIXEL RGB_BITS_PER_PIXEL/RGB_BITS_PER_BYTE
 
 
 
@@ -66,7 +66,7 @@ unsigned long rgb_address_pixel_xy(x, y, rgb_addresses)
 unsigned long x;
 unsigned long y;
 struct rgb_addresses_t* rgb_addresses;
-{ return (x + (y * siz_image_width(rgb_addresses->siz_data))) * (unsigned long)RGB_BYTES_PER_PIXEL; }
+{ return ((y * siz_image_width(rgb_addresses->siz_data)) + x) * (unsigned long)RGB_BYTES_PER_PIXEL; }
 
 /* Return the R, G, or B value of the requested pixel*/
 unsigned char rgb_pixel_color(x, y, c, rgb_addresses)
