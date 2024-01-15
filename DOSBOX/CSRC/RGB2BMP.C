@@ -178,8 +178,6 @@ char** envp;
 	
 	/* Transfer each pixel from RGB to BMP */
 	/* We know RGB data itself is good*/
-	/** TODO, for some reason this is broken not sure if it's rgb address_pixel_xy, rgb_pixel color, or something else **/
-	/** LOoks like RGB pixel color is coming back with all 0s' **/
 	fprintf(stderr,"BMP Pixel contents: ");
 	for (y = 0; y < siz_image_height(rgb_addresses->siz_data); y++) {
 		for (x = 0; x < siz_image_width(rgb_addresses->siz_data); x++) {
