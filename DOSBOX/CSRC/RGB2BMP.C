@@ -39,10 +39,7 @@ char** envp;
 	unsigned long x;
 	unsigned long y;
 
-	unsigned char r; /* TODO - Remove these, no longer necessary */
-	unsigned char g;
-	unsigned char b;
-	unsigned char* raw_siz;
+	unsigned char* raw_siz; /* Used to write directly to the siz_t */
 
 	char* base_file_name; /* User supplied base file name */
 	char* working_file_name; /* Working full file name + extension */
