@@ -41,6 +41,7 @@ struct bmp_addresses_t {
 	unsigned char* bmp_data;
 	struct bmp_header_t* bmp_h;
 	struct bmp_dib_header_t* dib_h;
+	unsigned char* pixel_data; /* TODO (#5) - Implement and refactor */
 };
 
 /*** Function definitions ***/
@@ -171,6 +172,8 @@ unsigned char g;
 unsigned char b;
 struct bmp_addresses_t* bmp_addresses;
 {
+	/* TODO(#5?) - Look this over to confirm this needs to be done from the beginning 
+	This can probably be done by indexing pixel_array_start[]?*/
 	unsigned char* pixel_address;
 	/* Absolute Pixel data address is beginning of bitmap + address of the xy */
 	pixel_address = (unsigned char*)((unsigned long)bmp_addresses->bmp_data+bmp_address_pixel_xy(x, y, bmp_addresses));

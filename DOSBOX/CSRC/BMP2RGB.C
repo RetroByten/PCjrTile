@@ -14,14 +14,21 @@
 #include <stdlib.h>
 #endif
 
-/*** Project library ***/
+/*** Project libraries ***/
 #ifndef __BMP_H__
 #define __BMP_H__
 #include "BMP.H"
 #endif
 
+#ifndef __RGBSIZ_H__
+#define __RGBSIZ_H__
+#include "RGBSIZ.H"
+#endif
+
 /*** Globals ***/
 struct bmp_addresses_t* bmp_addresses;
+struct siz_t* siz_data;
+struct rgb_addresses_t* rgb_addresses;
 
 /*** Main Function ***/
 main(argc, argv, envp)
@@ -32,10 +39,6 @@ char** envp;
 	/* LOCAL VARS */
 	unsigned long x;
 	unsigned long y;
-
-	unsigned char r;
-	unsigned char g;
-	unsigned char b;
 
 	char* base_file_name; /* User supplied base file name */
 	char* working_file_name; /* Working full file name + extension */
@@ -130,6 +133,16 @@ char** envp;
 
 	/** TODO(#2) - Check if X/Y size is too big for memory, bail if it is, close file/memory **/
 
+
+	/* Allocate memory for the siz_t*/
+	siz_data = (struct siz_t*)calloc((unsigned int)1, (unsigned int)sizeof(struct siz_t));
+
+	/* Set the width and height from the BMP data */
+	siz_write_four_byte_value(siz_data->raw_image_width, bmp_image_width(bmp_addresses));
+	siz_write_four_byte_value(siz_data->raw_image_height, bmp_image_height(bmp_addresses));
+	fprintf(stderr, "siz_data->image_width=%lu\r\n", siz_image_width(siz_data));
+	fprintf(stderr, "siz_data->image_height=%lu\r\n", siz_image_height(siz_data));
+
 	/* Output the .SIZ file */
 	/* Change working file extension to .SIZ, leave the '.' and '\0' alone */
 	working_file_extension[1] = 'S';
@@ -140,9 +153,24 @@ char** envp;
 	/* Open the working file as write-binary */
 	/* Output image width and image height */
 	working_file = fopen(working_file_name, "wb");
-	fwrite((char*)bmp_addresses->dib_h->raw_image_width, (int)sizeof(bmp_addresses->dib_h->raw_image_width),(int)1, working_file);
-	fwrite((char*)bmp_addresses->dib_h->raw_image_height, (int)sizeof(bmp_addresses->dib_h->raw_image_height), (int)1, working_file);
+	fwrite((char*)siz_data,(int)sizeof(struct siz_t),(int)1, working_file);
 	fclose(working_file);
+
+	/* Allocate memory for the rgb_addresses_t */
+	rgb_addresses = (struct rgb_addresses_t*)calloc((unsigned int)1,(unsigned int)sizeof(struct rgb_addresses_t));
+	rgb_addresses->siz_data = siz_data;
+	rgb_addresses->rgb_data = (unsigned char*)calloc((unsigned int)1, (unsigned int)siz_calculate_size(rgb_addresses->siz_data));
+
+	/* Set the RGB pixels from the BMP pixels*/
+	for (y = 0; y < bmp_image_height(bmp_addresses); y++) {
+		for (x = 0; x < bmp_image_width(bmp_addresses); x++ ) {
+			rgb_write_color(x, y,
+				bmp_pixel_color(x, y, (unsigned long)BMP_RED_ADDRESS_OFFSET, bmp_addresses),
+				bmp_pixel_color(x, y, (unsigned long)BMP_GREEN_ADDRESS_OFFSET, bmp_addresses),
+				bmp_pixel_color(x, y, (unsigned long)BMP_BLUE_ADDRESS_OFFSET, bmp_addresses),
+				rgb_addresses);
+		}
+	}
 
 	/* Output the .RGB file */
 	/* Change working file extension to .RGB */
@@ -152,23 +180,18 @@ char** envp;
 	fprintf(stderr, "Output file name: %s\r\n", working_file_name);
 
 	/* Open the working file as write-binary */
-	/* Loop through each pixel, output each byte of RGB for each pixel, top to bottom, left to right */
-	/* X,Y = pixel coordinates */
+	/* Write the RGB data to a file */ 
 	working_file = fopen(working_file_name, "wb");
-	for (y = 0; y < bmp_image_height(bmp_addresses); y++) {
-		for (x = 0; x < bmp_image_width(bmp_addresses); x++) {
-			r = bmp_pixel_color(x, y, (unsigned long)BMP_RED_ADDRESS_OFFSET, bmp_addresses);
-			fwrite((char*)&r, (int)sizeof(r), (int)1, working_file);
-			g = bmp_pixel_color(x, y, (unsigned long)BMP_GREEN_ADDRESS_OFFSET, bmp_addresses);
-			fwrite((char*)&g, (int)sizeof(g), (int)1, working_file);
-			b = bmp_pixel_color(x, y, (unsigned long)BMP_BLUE_ADDRESS_OFFSET, bmp_addresses);
-			fwrite((char*)&b, (int)sizeof(b), (int)1, working_file);
-		}
-	}
+	fwrite((char*)rgb_addresses->rgb_data,(int)siz_calculate_size(rgb_addresses->siz_data),(int)1,working_file);
 	fclose(working_file);
 
 	/* Free the file_name memory */
 	free(working_file_name);
+
+	/* Free RGB Data */
+	free(rgb_addresses->rgb_data);
+	free(rgb_addresses);
+	free(siz_data);
 
 	/* Free BMP data buffer*/
 	free(bmp_addresses->bmp_data);
