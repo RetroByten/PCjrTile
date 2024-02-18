@@ -206,7 +206,8 @@ char** envp;
 			continue;
 		}
 	}
-
+	fprintf(working_file,"%c",'\x1A'); /* add ctrl+z */
+	
 	/* Free working file */
 	fclose(working_file);
 	
