@@ -1,5 +1,5 @@
 /* Program to read in binary .RGB and .SIZ simplified image files and output:
-	1.) An ASCII palette file containing hex RRGGBB, one value per line
+	1.) An ASCII palette file containing decimal RRRGGGBBB, one value per line
 */
 
 /* 
@@ -174,10 +174,10 @@ char** envp;
 					if ( px == x && py == y) /* Yes, so no previous matches, this is a new palette */
 					{
 						/* Output the palette*/
-						fprintf(working_file,"%02X%02X%02X\r\n",
-							rgb_pixel_color(x, y, (unsigned long)RGB_RED_ADDRESS_OFFSET, rgb_addresses),
-							rgb_pixel_color(x, y, (unsigned long)RGB_GREEN_ADDRESS_OFFSET, rgb_addresses),
-							rgb_pixel_color(x, y, (unsigned long)RGB_BLUE_ADDRESS_OFFSET, rgb_addresses));
+						fprintf(working_file,"%03u%03u%03u\r\n",
+							(unsigned int)rgb_pixel_color(x, y, (unsigned long)RGB_RED_ADDRESS_OFFSET, rgb_addresses),
+							(unsigned int)rgb_pixel_color(x, y, (unsigned long)RGB_GREEN_ADDRESS_OFFSET, rgb_addresses),
+							(unsigned int)rgb_pixel_color(x, y, (unsigned long)RGB_BLUE_ADDRESS_OFFSET, rgb_addresses));
 						/* Increment the count*/
 						count++;
 						/* Get out of internal loop for this x/y */
@@ -207,7 +207,7 @@ char** envp;
 		}
 	}
 	fprintf(working_file,"%c",'\x1A'); /* add ctrl+z */
-	
+
 	/* Free working file */
 	fclose(working_file);
 	
